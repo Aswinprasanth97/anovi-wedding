@@ -445,7 +445,18 @@ body::before{
 }
 .invite-card::before{top:14px;left:14px;border-right:none;border-bottom:none;}
 .invite-card::after{bottom:14px;right:14px;border-left:none;border-top:none;}
-.invite-lamp{display:flex;justify-content:center;margin-bottom:6px;filter:drop-shadow(0 2px 6px rgba(212,175,55,.35));}
+.invite-lamp{
+  display:flex;
+  justify-content:center;
+  margin-bottom:8px;
+  filter:drop-shadow(0 2px 6px rgba(212,175,55,.35));
+}
+.invite-ganapathi{
+  width:48px;
+  height:auto;
+  display:block;
+  object-fit:contain;
+}
 .invite-family{font-size:17px;color:var(--cream-dim);margin-bottom:4px;}
 .invite-family small{display:block;color:var(--gold-dim);font-size:13px;letter-spacing:.1em;margin-top:2px;}
 .invite-names{
