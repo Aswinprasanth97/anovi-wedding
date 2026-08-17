@@ -84,14 +84,28 @@
     <div class="bloom bloom-b"></div>
 
     <div class="garland" aria-hidden="true">
-      <div class="garland-strand"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="garland-strand"><span></span><span></span><span></span></div>
+      <svg class="garland-svg" viewBox="0 0 1440 210" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="jasmineGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="1.4" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        <path class="garland-vine" d="M0,16 Q90,152 180,16 Q270,152 360,16 Q450,152 540,16 Q630,152 720,16 Q810,152 900,16 Q990,152 1080,16 Q1170,152 1260,16 Q1350,152 1440,16"/>
+        <path class="garland-beads" filter="url(#jasmineGlow)" d="M0,16 Q90,152 180,16 Q270,152 360,16 Q450,152 540,16 Q630,152 720,16 Q810,152 900,16 Q990,152 1080,16 Q1170,152 1260,16 Q1350,152 1440,16"/>
+
+        <g transform="translate(180,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="44"/><circle class="tassel-bud" cx="0" cy="50" r="6"/></g></g>
+        <g transform="translate(360,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="52"/><circle class="tassel-bud" cx="0" cy="58" r="6"/></g></g>
+        <g transform="translate(540,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="40"/><circle class="tassel-bud" cx="0" cy="46" r="6"/></g></g>
+        <g transform="translate(720,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="56"/><circle class="tassel-bud" cx="0" cy="62" r="6"/></g></g>
+        <g transform="translate(900,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="40"/><circle class="tassel-bud" cx="0" cy="46" r="6"/></g></g>
+        <g transform="translate(1080,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="52"/><circle class="tassel-bud" cx="0" cy="58" r="6"/></g></g>
+        <g transform="translate(1260,16)"><g class="tassel"><line x1="0" y1="0" x2="0" y2="44"/><circle class="tassel-bud" cx="0" cy="50" r="6"/></g></g>
+      </svg>
     </div>
 
     <div class="hero-kicker" data-reveal>Together with their families</div>
