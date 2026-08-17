@@ -280,7 +280,7 @@ body::before{
   gap:12px;
   padding-top:2px;
   transform-origin:top center;
-  animation:garland-sway 4.5s ease-in-out infinite;
+  will-change:transform;
   background:linear-gradient(rgba(185,146,74,.4), transparent 88%) no-repeat center / 1px 100%;
 }
 .bud{
@@ -296,13 +296,6 @@ body::before{
     -1.6px -2.77px 0 0 var(--cream),
     1.6px -2.77px 0 0 var(--cream);
   filter:drop-shadow(0 0 3px rgba(255,255,255,.55));
-}
-.garland-strand:nth-child(odd){animation-delay:-1.4s;animation-duration:5.1s;}
-.garland-strand:nth-child(3n){animation-duration:5.8s;animation-delay:-2.3s;}
-.garland-strand:nth-child(4n){animation-duration:4.1s;animation-delay:-.8s;}
-@keyframes garland-sway{
-  0%,100%{transform:rotate(-4deg);}
-  50%{transform:rotate(4deg);}
 }
 
 .hero-kicker{
@@ -655,6 +648,21 @@ footer{
 }
 @keyframes petal-fall{
   to{transform:translateY(110vh) rotate(320deg);opacity:.2;}
+}
+
+/* ---------------- tap-for-flower burst ---------------- */
+.petal-burst{
+  position:fixed;
+  top:0;left:0;
+  width:11px;height:11px;
+  margin:-5.5px 0 0 -5.5px;
+  background:radial-gradient(circle at 30% 30%, var(--gold-bright), var(--maroon-500));
+  border-radius:0 50% 50% 50%;
+  pointer-events:none;
+  z-index:500;
+  opacity:1;
+  transform:translate(0,0) rotate(0deg) scale(1);
+  transition:transform 1.1s cubic-bezier(.16,.8,.3,1), opacity 1.1s ease .1s;
 }
 
 /* ---------------- misc ---------------- */

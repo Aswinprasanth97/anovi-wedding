@@ -40,6 +40,8 @@
     initShare();
     initMusic();
     initFabs();
+    initGarland();
+    initTapForFlower();
   });
 
   /* ---------------- entrance gate ---------------- */
@@ -179,6 +181,120 @@
         p.style.transform = "scale(" + (0.6+Math.random()*0.8) + ")";
         document.body.appendChild(p);
         setTimeout(function(){ p.remove(); }, duration*1000 + 200);
+      })();
+    }
+  }
+
+  /* ---------------- garland: pendulum sway + mouse wind ---------------- */
+  function initGarland(){
+    var strands = Array.prototype.slice.call(document.querySelectorAll(".garland-strand"));
+    var hero = document.querySelector(".hero");
+    if(!strands.length || !hero) return;
+
+    var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    var data = strands.map(function(el){
+      return {
+        el: el,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 0.45,
+        idleAmp: 3 + Math.random() * 2.2,
+        cx: 0
+      };
+    });
+
+    function recomputeCenters(){
+      var heroRect = hero.getBoundingClientRect();
+      data.forEach(function(d){
+        var r = d.el.getBoundingClientRect();
+        d.cx = (r.left + r.width / 2) - heroRect.left;
+      });
+    }
+    recomputeCenters();
+    window.addEventListener("resize", recomputeCenters);
+
+    var mouseX = null;
+    var mouseActive = false;
+    var windRadius = 260;
+    var windStrength = 12;
+
+    // Listen on the document (not just the hero) so hovering over the
+    // fixed nav bar — which visually sits on top of the garland's
+    // upper strands — still registers as wind.
+    document.addEventListener("mousemove", function(e){
+      var heroRect = hero.getBoundingClientRect();
+      if(e.clientY < heroRect.top || e.clientY > heroRect.top + 200){
+        mouseActive = false;
+        return;
+      }
+      mouseX = e.clientX - heroRect.left;
+      mouseActive = true;
+    });
+    document.addEventListener("mouseleave", function(){
+      mouseActive = false;
+    });
+
+    if(reduceMotion){
+      return; // leave strands static for users who've asked for reduced motion
+    }
+
+    function frame(t){
+      var seconds = t / 1000;
+      data.forEach(function(d){
+        var idle = Math.sin(seconds * d.speed + d.phase) * d.idleAmp;
+        var wind = 0;
+        if(mouseActive && mouseX !== null){
+          var dist = Math.abs(d.cx - mouseX);
+          if(dist < windRadius){
+            var influence = 1 - dist / windRadius;
+            var dir = d.cx < mouseX ? -1 : 1;
+            wind = influence * influence * windStrength * dir;
+          }
+        }
+        d.el.style.transform = "rotate(" + (idle + wind).toFixed(2) + "deg)";
+      });
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------------- tap / click for a flower burst ---------------- */
+  function initTapForFlower(){
+    document.addEventListener("click", function(e){
+      spawnPetalBurstAt(e.clientX, e.clientY);
+    });
+    document.addEventListener("touchstart", function(e){
+      if(e.touches && e.touches[0]){
+        spawnPetalBurstAt(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+  }
+
+  function spawnPetalBurstAt(x, y){
+    var count = 8 + Math.floor(Math.random() * 5);
+    for(var i = 0; i < count; i++){
+      (function(){
+        var p = document.createElement("div");
+        p.className = "petal-burst";
+        p.style.left = x + "px";
+        p.style.top = y + "px";
+        document.body.appendChild(p);
+
+        var angle = Math.random() * Math.PI * 2;
+        var dist = 50 + Math.random() * 90;
+        var dx = Math.cos(angle) * dist;
+        var dy = Math.sin(angle) * dist * 0.6 + 70;
+        var rot = (Math.random() * 360 - 180).toFixed(0);
+        var scale = (0.6 + Math.random() * 0.7).toFixed(2);
+
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){
+            p.style.transform = "translate(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px) rotate(" + rot + "deg) scale(" + scale + ")";
+            p.style.opacity = "0";
+          });
+        });
+
+        setTimeout(function(){ p.remove(); }, 1300);
       })();
     }
   }
