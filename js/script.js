@@ -63,7 +63,8 @@
   var lastShake = 0;
   var shakeListening = false;
   var shakeHintTimer = null;
-  var HINT_KEY = "anovi-shake-hint";
+  var shakePrev = null;
+  var HINT_KEY = "anovi-shake-hint-v2";
 
   function dismissShakeHint(remember){
     var hint = document.getElementById("shake-hint");
@@ -72,22 +73,27 @@
     if(remember){
       try{ sessionStorage.setItem(HINT_KEY, "seen"); }catch(e){}
     }
-    if(hint.hidden || !hint.classList.contains("is-on")){
-      hint.hidden = true;
+    if(hint.hasAttribute("hidden") || !hint.classList.contains("is-on")){
+      hint.setAttribute("hidden", "");
+      hint.classList.remove("is-on");
       return;
     }
     hint.classList.remove("is-on");
-    setTimeout(function(){ hint.hidden = true; }, 450);
+    setTimeout(function(){
+      hint.setAttribute("hidden", "");
+    }, 450);
   }
 
   function showShakeHint(){
     var hint = document.getElementById("shake-hint");
-    if(!hint || hint.dataset.shown === "1") return;
-    hint.dataset.shown = "1";
+    if(!hint) return;
 
     try{
       if(sessionStorage.getItem(HINT_KEY) === "seen") return;
     }catch(e){}
+
+    if(hint.dataset.shown === "1") return;
+    hint.dataset.shown = "1";
 
     var isTouch =
       (navigator.maxTouchPoints || 0) > 0 ||
@@ -101,31 +107,42 @@
         : "Tap here for a flower shower";
     }
 
-    hint.hidden = false;
+    hint.removeAttribute("hidden");
+
+    // Double rAF so the fade-in transition runs after display is restored
     requestAnimationFrame(function(){
-      hint.classList.add("is-on");
+      requestAnimationFrame(function(){
+        hint.classList.add("is-on");
+      });
     });
 
-    hint.addEventListener("click", function(){
+    hint.onclick = function(){
       spawnPetalShower(24);
       dismissShakeHint(true);
-    });
+    };
 
     shakeHintTimer = setTimeout(function(){
       dismissShakeHint(true);
-    }, 8000);
+    }, 10000);
   }
 
   function handleShake(e){
     var acc = e.accelerationIncludingGravity || e.acceleration;
     if(!acc || acc.x == null) return;
-    var magnitude = Math.abs(acc.x||0) + Math.abs(acc.y||0) + Math.abs(acc.z||0);
-    var now = Date.now();
-    if(magnitude > 35 && now - lastShake > 1500){
-      lastShake = now;
-      spawnPetalShower(24);
-      dismissShakeHint(true);
+
+    if(shakePrev){
+      var delta =
+        Math.abs(acc.x - shakePrev.x) +
+        Math.abs(acc.y - shakePrev.y) +
+        Math.abs(acc.z - shakePrev.z);
+      var now = Date.now();
+      if(delta > 26 && now - lastShake > 1100){
+        lastShake = now;
+        spawnPetalShower(24);
+        dismissShakeHint(true);
+      }
     }
+    shakePrev = { x: acc.x, y: acc.y, z: acc.z };
   }
 
   function attachShakeListener(){
@@ -142,7 +159,8 @@
     } else {
       attachShakeListener();
     }
-    setTimeout(showShakeHint, 900);
+    // After the entrance overlay has finished fading out
+    setTimeout(showShakeHint, 1100);
   };
 
   /* ---------------- nav ---------------- */
