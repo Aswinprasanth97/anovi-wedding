@@ -268,47 +268,41 @@ body::before{
   position:absolute;
   top:0;left:0;right:0;
   height:150px;
+  display:flex;
+  justify-content:space-evenly;
   pointer-events:none;
   z-index:1;
 }
-.garland-svg{
-  width:100%;
-  height:100%;
-  display:block;
-  overflow:visible;
-}
-.garland-vine{
-  fill:none;
-  stroke:var(--gold-dim);
-  stroke-width:2;
-  opacity:.55;
-}
-.garland-beads{
-  fill:none;
-  stroke:var(--cream);
-  stroke-width:7;
-  stroke-linecap:round;
-  stroke-dasharray:0.1 15;
-  opacity:.92;
-}
-.tassel{
-  transform-box:fill-box;
-  transform-origin:center top;
+.garland-strand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  padding-top:2px;
+  transform-origin:top center;
   animation:garland-sway 4.5s ease-in-out infinite;
+  background:linear-gradient(rgba(185,146,74,.4), transparent 88%) no-repeat center / 1px 100%;
 }
-.tassel line{
-  stroke:var(--gold-dim);
-  stroke-width:1.6;
-  opacity:.7;
+.bud{
+  position:relative;
+  width:3.2px;height:3.2px;
+  border-radius:50%;
+  background:var(--gold);
+  box-shadow:
+    3.2px 0 0 0 var(--cream),
+    1.6px 2.77px 0 0 var(--cream),
+    -1.6px 2.77px 0 0 var(--cream),
+    -3.2px 0 0 0 var(--cream),
+    -1.6px -2.77px 0 0 var(--cream),
+    1.6px -2.77px 0 0 var(--cream);
+  filter:drop-shadow(0 0 3px rgba(255,255,255,.55));
 }
-.tassel-bud{
-  fill:var(--cream);
-}
-.garland-svg g[transform]:nth-of-type(odd) .tassel{animation-delay:-1.6s;animation-duration:5.2s;}
-.garland-svg g[transform]:nth-of-type(3n) .tassel{animation-duration:6s;animation-delay:-2.4s;}
+.garland-strand:nth-child(odd){animation-delay:-1.4s;animation-duration:5.1s;}
+.garland-strand:nth-child(3n){animation-duration:5.8s;animation-delay:-2.3s;}
+.garland-strand:nth-child(4n){animation-duration:4.1s;animation-delay:-.8s;}
 @keyframes garland-sway{
-  0%,100%{transform:rotate(-3.5deg);}
-  50%{transform:rotate(3.5deg);}
+  0%,100%{transform:rotate(-4deg);}
+  50%{transform:rotate(4deg);}
 }
 
 .hero-kicker{
