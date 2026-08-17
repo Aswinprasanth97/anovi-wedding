@@ -54,33 +54,96 @@
       gate.classList.add("hidden");
       document.body.classList.remove("locked");
       if(startMusicFromGesture) startMusicFromGesture();
-      requestMotionPermission();
+      if(enableShakeFromGesture) enableShakeFromGesture();
     });
   }
 
-  function requestMotionPermission(){
-    if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
-      DeviceMotionEvent.requestPermission().then(function(state){
-        if(state === "granted"){
-          window.addEventListener("devicemotion", handleShake);
-        }
-      }).catch(function(){});
-    } else {
-      window.addEventListener("devicemotion", handleShake);
+  /* ---------------- shake for flower shower + hint ---------------- */
+  var enableShakeFromGesture = null;
+  var lastShake = 0;
+  var shakeListening = false;
+  var shakeHintTimer = null;
+  var HINT_KEY = "anovi-shake-hint";
+
+  function dismissShakeHint(remember){
+    var hint = document.getElementById("shake-hint");
+    if(!hint) return;
+    clearTimeout(shakeHintTimer);
+    if(remember){
+      try{ sessionStorage.setItem(HINT_KEY, "seen"); }catch(e){}
     }
+    if(hint.hidden || !hint.classList.contains("is-on")){
+      hint.hidden = true;
+      return;
+    }
+    hint.classList.remove("is-on");
+    setTimeout(function(){ hint.hidden = true; }, 450);
   }
 
-  var lastShake = 0;
+  function showShakeHint(){
+    var hint = document.getElementById("shake-hint");
+    if(!hint || hint.dataset.shown === "1") return;
+    hint.dataset.shown = "1";
+
+    try{
+      if(sessionStorage.getItem(HINT_KEY) === "seen") return;
+    }catch(e){}
+
+    var isTouch =
+      (navigator.maxTouchPoints || 0) > 0 ||
+      "ontouchstart" in window ||
+      (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+
+    var label = hint.querySelector("[data-hint-label]");
+    if(label){
+      label.textContent = isTouch
+        ? "Shake for a flower shower"
+        : "Tap here for a flower shower";
+    }
+
+    hint.hidden = false;
+    requestAnimationFrame(function(){
+      hint.classList.add("is-on");
+    });
+
+    hint.addEventListener("click", function(){
+      spawnPetalShower(24);
+      dismissShakeHint(true);
+    });
+
+    shakeHintTimer = setTimeout(function(){
+      dismissShakeHint(true);
+    }, 8000);
+  }
+
   function handleShake(e){
-    var acc = e.accelerationIncludingGravity;
-    if(!acc) return;
+    var acc = e.accelerationIncludingGravity || e.acceleration;
+    if(!acc || acc.x == null) return;
     var magnitude = Math.abs(acc.x||0) + Math.abs(acc.y||0) + Math.abs(acc.z||0);
     var now = Date.now();
     if(magnitude > 35 && now - lastShake > 1500){
       lastShake = now;
       spawnPetalShower(24);
+      dismissShakeHint(true);
     }
   }
+
+  function attachShakeListener(){
+    if(shakeListening) return;
+    shakeListening = true;
+    window.addEventListener("devicemotion", handleShake, { passive: true });
+  }
+
+  enableShakeFromGesture = function(){
+    if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+      DeviceMotionEvent.requestPermission().then(function(state){
+        if(state === "granted") attachShakeListener();
+      }).catch(function(){});
+    } else {
+      attachShakeListener();
+    }
+    setTimeout(showShakeHint, 900);
+  };
 
   /* ---------------- nav ---------------- */
   function initNav(){
