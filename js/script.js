@@ -53,7 +53,7 @@
     btn.addEventListener("click", function(){
       gate.classList.add("hidden");
       document.body.classList.remove("locked");
-      primeAudio();
+      if(startMusicFromGesture) startMusicFromGesture();
       requestMotionPermission();
     });
   }
@@ -199,7 +199,8 @@
         phase: Math.random() * Math.PI * 2,
         speed: 0.5 + Math.random() * 0.45,
         idleAmp: 3 + Math.random() * 2.2,
-        cx: 0
+        cx: 0,
+        wind: 0
       };
     });
 
@@ -213,10 +214,10 @@
     recomputeCenters();
     window.addEventListener("resize", recomputeCenters);
 
-    var mouseX = null;
-    var mouseActive = false;
-    var windRadius = 260;
-    var windStrength = 12;
+    var rawMouseX = null;
+    var smoothMouseX = null;
+    var targetActive = 0;   // 1 while the pointer is near the garland, 0 otherwise
+    var activeAmount = 0;   // eased toward targetActive each frame
 
     // Listen on the document (not just the hero) so hovering over the
     // fixed nav bar — which visually sits on top of the garland's
@@ -224,34 +225,62 @@
     document.addEventListener("mousemove", function(e){
       var heroRect = hero.getBoundingClientRect();
       if(e.clientY < heroRect.top || e.clientY > heroRect.top + 200){
-        mouseActive = false;
+        targetActive = 0;
         return;
       }
-      mouseX = e.clientX - heroRect.left;
-      mouseActive = true;
+      rawMouseX = e.clientX - heroRect.left;
+      if(smoothMouseX === null) smoothMouseX = rawMouseX;
+      targetActive = 1;
     });
     document.addEventListener("mouseleave", function(){
-      mouseActive = false;
+      targetActive = 0;
     });
 
     if(reduceMotion){
       return; // leave strands static for users who've asked for reduced motion
     }
 
+    var windRadius = 220;    // how far (px) the wind field reaches, in either direction
+    var windStrength = 14;   // peak tilt in degrees
+    // Peak of x*exp(-x^2/2) occurs at x=1, value exp(-0.5) — used to normalize
+    // the curve below so its true peak equals windStrength.
+    var gaussPeak = Math.exp(-0.5);
+
+    var lastT = null;
+
     function frame(t){
+      if(lastT === null) lastT = t;
+      var dt = Math.min((t - lastT) / 1000, 0.05); // clamp to avoid big jumps on tab-switch
+      lastT = t;
       var seconds = t / 1000;
+
+      // Ease the pointer position and the hover on/off state so nothing
+      // ever snaps — both chase their targets at a frame-rate-independent rate.
+      var posLerp = 1 - Math.exp(-dt * 10);
+      var activeLerp = 1 - Math.exp(-dt * 4);
+      if(rawMouseX !== null && smoothMouseX !== null){
+        smoothMouseX += (rawMouseX - smoothMouseX) * posLerp;
+      }
+      activeAmount += (targetActive - activeAmount) * activeLerp;
+
+      var windLerp = 1 - Math.exp(-dt * 6);
+
       data.forEach(function(d){
         var idle = Math.sin(seconds * d.speed + d.phase) * d.idleAmp;
-        var wind = 0;
-        if(mouseActive && mouseX !== null){
-          var dist = Math.abs(d.cx - mouseX);
-          if(dist < windRadius){
-            var influence = 1 - dist / windRadius;
-            var dir = d.cx < mouseX ? -1 : 1;
-            wind = influence * influence * windStrength * dir;
-          }
+
+        var targetWind = 0;
+        if(activeAmount > 0.001 && smoothMouseX !== null){
+          // Smooth "wake" field: zero directly under the cursor, peaks a
+          // little to either side, decays to zero far away — a
+          // continuous curve with no sign-flip discontinuity, so a
+          // strand's tilt never snaps as the cursor sweeps past it.
+          var x = (d.cx - smoothMouseX) / windRadius;
+          var shape = x * Math.exp(-(x * x) / 2) / gaussPeak;
+          targetWind = shape * windStrength * activeAmount;
         }
-        d.el.style.transform = "rotate(" + (idle + wind).toFixed(2) + "deg)";
+        d.wind += (targetWind - d.wind) * windLerp;
+
+        d.el.style.transform = "rotate(" + (idle + d.wind).toFixed(2) + "deg)";
       });
       requestAnimationFrame(frame);
     }
@@ -385,112 +414,92 @@
       });
     }
     if(calBtn){
-      calBtn.addEventListener("click", downloadICS);
+      calBtn.addEventListener("click", openGoogleCalendar);
     }
   }
 
   function pad(n){ return String(n).padStart(2,"0"); }
 
-  function toICSDate(dateStr, timeStr){
+  function toUTCStamp(dateStr, timeStr){
     var d = new Date(dateStr + "T" + timeStr + ":00" + WEDDING.timezoneOffset);
     return d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + "T" +
            pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + "Z";
   }
 
-  function buildICS(){
-    var events = [WEDDING.ceremony, WEDDING.reception];
-    var lines = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//" + WEDDING.groom + WEDDING.bride + "//Wedding//EN"];
-    events.forEach(function(ev, i){
-      lines.push("BEGIN:VEVENT");
-      lines.push("UID:" + i + "-" + Date.now() + "@wedding");
-      lines.push("DTSTAMP:" + toICSDate(ev.date, ev.start));
-      lines.push("DTSTART:" + toICSDate(ev.date, ev.start));
-      lines.push("DTEND:" + toICSDate(ev.date, ev.end));
-      lines.push("SUMMARY:" + WEDDING.groom + " & " + WEDDING.bride + " — " + ev.label);
-      lines.push("LOCATION:" + ev.address);
-      lines.push("DESCRIPTION:" + WEDDING.description);
-      lines.push("BEGIN:VALARM");
-      lines.push("TRIGGER:-P1D");
-      lines.push("ACTION:DISPLAY");
-      lines.push("DESCRIPTION:Reminder");
-      lines.push("END:VALARM");
-      lines.push("END:VEVENT");
-    });
-    lines.push("END:VCALENDAR");
-    return lines.join("\r\n");
+  function googleCalendarUrl(ev){
+    var text = WEDDING.groom + " & " + WEDDING.bride + " — " + ev.label;
+    var dates = toUTCStamp(ev.date, ev.start) + "/" + toUTCStamp(ev.date, ev.end);
+    var details = WEDDING.description
+      + "\n\nCeremony: " + WEDDING.ceremony.venue + " — " + WEDDING.ceremony.date + " " + WEDDING.ceremony.start + "–" + WEDDING.ceremony.end
+      + "\nReception: " + WEDDING.reception.venue + " — " + WEDDING.reception.date + " " + WEDDING.reception.start + "–" + WEDDING.reception.end
+      + "\n\n" + window.location.href;
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE"
+      + "&text=" + encodeURIComponent(text)
+      + "&dates=" + dates
+      + "&details=" + encodeURIComponent(details)
+      + "&location=" + encodeURIComponent(ev.address);
   }
 
-  function downloadICS(){
-    var blob = new Blob([buildICS()], { type: "text/calendar;charset=utf-8" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = WEDDING.groom + "-" + WEDDING.bride + "-wedding.ics";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+  function openGoogleCalendar(){
+    window.open(googleCalendarUrl(WEDDING.ceremony), "_blank", "noopener");
   }
 
-  /* ---------------- generative music (no external audio file needed) ---------------- */
-  var audioCtx = null, musicPlaying = false, musicTimer = null, droneNodes = [];
-  function primeAudio(){
-    if(!audioCtx){
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if(AC) audioCtx = new AC();
+  /* ---------------- music (same track as kana: assets/audio/wedding-song.mp3) ---------------- */
+  var MUSIC_SRC = "assets/audio/wedding-song.mp3";
+  var musicPlaying = false;
+  var musicAudio = null;
+  var startMusicFromGesture = null;
+
+  function syncMusicButton(){
+    var btn = document.getElementById("musicToggle");
+    if(!btn) return;
+    btn.textContent = musicPlaying ? "♪" : "♫";
+    btn.setAttribute("aria-label", musicPlaying ? "Pause music" : "Play music");
+  }
+
+  function ensureMusicAudio(){
+    if(musicAudio) return musicAudio;
+    musicAudio = new Audio(MUSIC_SRC);
+    musicAudio.loop = true;
+    musicAudio.preload = "auto";
+    musicAudio.volume = 0.7;
+    return musicAudio;
+  }
+
+  function startMusic(){
+    var audio = ensureMusicAudio();
+    var play = audio.play();
+    musicPlaying = true;
+    syncMusicButton();
+    if(play && play.catch){
+      play.catch(function(){
+        musicPlaying = false;
+        syncMusicButton();
+      });
     }
   }
+
+  function stopMusic(){
+    if(musicAudio){
+      musicAudio.pause();
+    }
+    musicPlaying = false;
+    syncMusicButton();
+  }
+
   function initMusic(){
     var btn = document.getElementById("musicToggle");
     if(!btn) return;
+
+    ensureMusicAudio();
+
+    startMusicFromGesture = function(){
+      if(!musicPlaying) startMusic();
+    };
+
     btn.addEventListener("click", function(){
-      primeAudio();
-      if(!audioCtx) return;
       musicPlaying ? stopMusic() : startMusic();
-      btn.textContent = musicPlaying ? "♪" : "♫";
-      btn.setAttribute("aria-label", musicPlaying ? "Pause music" : "Play music");
     });
-  }
-  var PENTATONIC = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]; // C D E G A C — Mohanam-style
-  function startMusic(){
-    if(!audioCtx) return;
-    musicPlaying = true;
-    var master = audioCtx.createGain();
-    master.gain.value = 0.06;
-    master.connect(audioCtx.destination);
-    droneNodes.push(master);
-
-    var drone = audioCtx.createOscillator();
-    drone.type = "sine";
-    drone.frequency.value = 130.81;
-    var droneGain = audioCtx.createGain();
-    droneGain.gain.value = 0.4;
-    drone.connect(droneGain).connect(master);
-    drone.start();
-    droneNodes.push(drone);
-
-    function pluck(){
-      if(!musicPlaying) return;
-      var freq = PENTATONIC[Math.floor(Math.random()*PENTATONIC.length)];
-      var osc = audioCtx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-      var g = audioCtx.createGain();
-      g.gain.setValueAtTime(0, audioCtx.currentTime);
-      g.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.6);
-      osc.connect(g).connect(master);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 1.7);
-      musicTimer = setTimeout(pluck, 900 + Math.random()*900);
-    }
-    pluck();
-  }
-  function stopMusic(){
-    musicPlaying = false;
-    clearTimeout(musicTimer);
-    droneNodes.forEach(function(n){ try{ n.disconnect(); n.stop && n.stop(); }catch(e){} });
-    droneNodes = [];
   }
 
   /* ---------------- floating action buttons ---------------- */
