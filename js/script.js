@@ -53,6 +53,7 @@
     btn.addEventListener("click", function(){
       gate.classList.add("hidden");
       document.body.classList.remove("locked");
+      if(typeof gtag === "function") gtag("event", "open_invitation");
       if(startMusicFromGesture) startMusicFromGesture();
       if(enableShakeFromGesture) enableShakeFromGesture();
     });
